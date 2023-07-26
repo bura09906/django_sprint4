@@ -158,8 +158,8 @@ def profile(request, username):
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
         context = {
-           'profile': profile,
-           'page_obj': page_obj
+            'profile': profile,
+            'page_obj': page_obj
         }
         return render(request, 'blog/profile.html', context)
     else:
@@ -176,8 +176,8 @@ def profile(request, username):
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
         context = {
-           'profile': profile,
-           'page_obj': page_obj
+            'profile': profile,
+            'page_obj': page_obj
         }
         return render(request, 'blog/profile.html', context)
 
@@ -216,7 +216,7 @@ class CategoryDetailView(DetailView):
             pub_date__lte=timezone.now(),
         ).order_by('-pub_date').annotate(
             comment_count=Count('comments')
-        ).order_by('-pub_date')
+        )
         paginator = Paginator(posts, POSTS_ON_PAGE)
         page_number = self.request.GET.get('page')
         page_obj = paginator.get_page(page_number)
