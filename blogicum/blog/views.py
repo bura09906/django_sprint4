@@ -1,15 +1,14 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.db.models import Count
-from django.db.models.functions import Now
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.generic import CreateView, DeleteView, ListView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 
-from blog.models import Category, Comment, Post, User
-
+from blogicum.settings import POSTS_ON_PAGE
 from .forms import CommentForm, PostForm, UserForm
+from .models import Category, Comment, Post, User
 
 
 def post_list(request):
@@ -22,7 +21,7 @@ def post_list(request):
         is_published=True,
         pub_date__lte=timezone.now(),
     ).annotate(comment_count=Count('comments')).order_by('-pub_date')
-    paginator = Paginator(posts, 10)
+    paginator = Paginator(posts, POSTS_ON_PAGE)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     context = {
@@ -33,23 +32,18 @@ def post_list(request):
 
 def post_detail(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
-    comments = post.comments.all().order_by('created_at')
-    form = CommentForm()
+    if (post.author != request.user
+        and (post.is_published is False
+             or post.category.is_published is False
+             or post.pub_date > timezone.now())):
+        return render(request, 'pages/404.html', status=404)
+    comments = post.comments.all()
     context = {
         'post': post,
-        'form': form,
+        'form': CommentForm(),
         'comments': comments
     }
-    if post.author == request.user:
-        return render(request, 'blog/detail.html', context)
-    if post.is_published is False:
-        return render(request, 'pages/404.html', status=404)
-    if post.category.is_published is False:
-        return render(request, 'pages/404.html', status=404)
-    if post.pub_date > timezone.now():
-        return render(request, 'pages/404.html', status=404)
-    else:
-        return render(request, 'blog/detail.html', context)
+    return render(request, 'blog/detail.html', context)
 
 
 class PostCreatView(LoginRequiredMixin, CreateView):
@@ -96,8 +90,7 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        instance = get_object_or_404(Post, pk=self.kwargs['post_id'])
-        context["form"] = PostForm(instance=instance)
+        context["form"] = PostForm(instance=self.object)
         return context
 
     def get_success_url(self):
@@ -155,19 +148,38 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
 
 def profile(request, username):
     profile = get_object_or_404(User, username=username)
-    page_obj = profile.posts.order_by(
-        '-pub_date'
-    ).annotate(
-        comment_count=Count('comments')
-    )
-    paginator = Paginator(page_obj, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    context = {
-        'profile': profile,
-        'page_obj': page_obj
-    }
-    return render(request, 'blog/profile.html', context)
+    if username == request.user.username:
+        page_obj = profile.posts.order_by(
+            '-pub_date'
+        ).annotate(
+            comment_count=Count('comments')
+        )
+        paginator = Paginator(page_obj, POSTS_ON_PAGE)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        context = {
+           'profile': profile,
+           'page_obj': page_obj
+        }
+        return render(request, 'blog/profile.html', context)
+    else:
+        page_obj = profile.posts.filter(
+            is_published=True,
+            category__is_published=True,
+            pub_date__lte=timezone.now(),
+        ).order_by(
+            '-pub_date'
+        ).annotate(
+            comment_count=Count('comments')
+        )
+        paginator = Paginator(page_obj, POSTS_ON_PAGE)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        context = {
+           'profile': profile,
+           'page_obj': page_obj
+        }
+        return render(request, 'blog/profile.html', context)
 
 
 class ProfileUpdateView(LoginRequiredMixin, UpdateView):
@@ -183,26 +195,30 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
                        kwargs={'username': self.request.user})
 
 
-class CategoryListView(ListView):
-    model = Post
+class CategoryDetailView(DetailView):
+    model = Category
     template_name = 'blog/category.html'
-    paginate_by = 10
-    ordering = '-pub_date'
+    context_object_name = 'category'
+    slug_url_kwarg = 'category_slug'
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        queryset = queryset.filter(
-            category__slug=self.kwargs['category_slug'],
-            is_published=True,
-            pub_date__lte=Now(),
-        ).annotate(comment_count=Count('comments'))
-        return queryset
+    def dispatch(self, request, *args, **kwargs):
+        instance = get_object_or_404(
+            self.model, slug=self.kwargs['category_slug']
+        )
+        if instance.is_published is False:
+            return render(request, 'pages/404.html', status=404)
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['category'] = get_object_or_404(
-            Category,
+        posts = self.get_object().posts.filter(
             is_published=True,
-            slug=self.kwargs['category_slug']
-        )
+            pub_date__lte=timezone.now(),
+        ).order_by('-pub_date').annotate(
+            comment_count=Count('comments')
+        ).order_by('-pub_date')
+        paginator = Paginator(posts, POSTS_ON_PAGE)
+        page_number = self.request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        context["page_obj"] = page_obj
         return context

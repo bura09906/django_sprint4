@@ -90,7 +90,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'ru-RU'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Moscow'
 
 USE_I18N = True
 
@@ -127,3 +127,5 @@ EMAIL_FILE_PATH = BASE_DIR / 'sent_emails'
 LOGIN_REDIRECT_URL = 'blog:index'
 
 MEDIA_ROOT = BASE_DIR / 'media'
+
+POSTS_ON_PAGE = 10  # количество выводимых постов на страницу
