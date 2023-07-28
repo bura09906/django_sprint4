@@ -1,16 +1,13 @@
 {% extends "base.html" %}
 {% load django_bootstrap5 %}
 {% block title %}
-{% with edit='/edit_comment/' %}
   {% if edit in request.path %}
     Редактирование комментария
   {% else %}
     Удаление комментария
   {% endif %}
-{% endwith %}
 {% endblock %}
 {% block content %}
-{% with edit='/edit_comment/' %}
   {% if user.is_authenticated %}
     <div class="col d-flex justify-content-center">
       <div class="card" style="width: 40rem;">
@@ -38,5 +35,4 @@
       </div>
     </div>
   {% endif %}
-{% endwith %}
 {% endblock %}

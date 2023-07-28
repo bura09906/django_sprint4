@@ -1,14 +1,13 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.paginator import Paginator
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 
-from blogicum.settings import POSTS_ON_PAGE
 from .forms import CommentForm, PostForm, UserForm
 from .models import Category, Comment, Post, User
+from core.utils import page_object
 
 
 def post_list(request):
@@ -21,11 +20,8 @@ def post_list(request):
         is_published=True,
         pub_date__lte=timezone.now(),
     ).annotate(comment_count=Count('comments')).order_by('-pub_date')
-    paginator = Paginator(posts, POSTS_ON_PAGE)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
     context = {
-        'page_obj': page_obj
+        'page_obj': page_object(posts, request.GET.get('page'))
     }
     return render(request, 'blog/index.html', context)
 
@@ -37,7 +33,7 @@ def post_detail(request, post_id):
              or post.category.is_published is False
              or post.pub_date > timezone.now())):
         return render(request, 'pages/404.html', status=404)
-    comments = post.comments.all()
+    comments = post.comments.select_related('author')
     context = {
         'post': post,
         'form': CommentForm(),
@@ -148,36 +144,26 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
 
 def profile(request, username):
     profile = get_object_or_404(User, username=username)
-    if username == request.user.username:
-        page_obj = profile.posts.order_by(
+    page_obj = profile.posts.order_by(
             '-pub_date'
         ).annotate(
             comment_count=Count('comments')
         )
-        paginator = Paginator(page_obj, POSTS_ON_PAGE)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        context = {
-            'profile': profile,
-            'page_obj': page_obj
-        }
-        return render(request, 'blog/profile.html', context)
-    else:
-        page_obj = profile.posts.filter(
+    if username != request.user.username:
+        page_obj = page_obj.filter(
             is_published=True,
             category__is_published=True,
             pub_date__lte=timezone.now(),
-        ).order_by(
-            '-pub_date'
-        ).annotate(
-            comment_count=Count('comments')
         )
-        paginator = Paginator(page_obj, POSTS_ON_PAGE)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
         context = {
             'profile': profile,
-            'page_obj': page_obj
+            'page_obj': page_object(page_obj, request.GET.get('page'))
+        }
+        return render(request, 'blog/profile.html', context)
+    else:
+        context = {
+            'profile': profile,
+            'page_obj': page_object(page_obj, request.GET.get('page'))
         }
         return render(request, 'blog/profile.html', context)
 
@@ -202,11 +188,11 @@ class CategoryDetailView(DetailView):
     slug_url_kwarg = 'category_slug'
 
     def dispatch(self, request, *args, **kwargs):
-        instance = get_object_or_404(
-            self.model, slug=self.kwargs['category_slug']
+        get_object_or_404(
+            self.model,
+            is_published=True,
+            slug=self.kwargs['category_slug']
         )
-        if instance.is_published is False:
-            return render(request, 'pages/404.html', status=404)
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -217,8 +203,6 @@ class CategoryDetailView(DetailView):
         ).order_by('-pub_date').annotate(
             comment_count=Count('comments')
         )
-        paginator = Paginator(posts, POSTS_ON_PAGE)
-        page_number = self.request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        context["page_obj"] = page_obj
+        context['page_obj'] = page_object(posts, self.request.GET.get('page'))
+        context['edit'] = '/edit_comment/'
         return context
