@@ -145,10 +145,8 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
 def profile(request, username):
     profile = get_object_or_404(User, username=username)
     page_obj = profile.posts.order_by(
-                '-pub_date'
-            ).annotate(
-                comment_count=Count('comments')
-            )
+        '-pub_date'
+    ).annotate(comment_count=Count('comments'))
     if username != request.user.username:
         page_obj = page_obj.filter(
             is_published=True,
