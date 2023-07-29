@@ -4,9 +4,7 @@
 {% endblock %}
 {% block content %}
   {% for post in page_obj %}
-    <article class="mb-5">
-      {% include "includes/post_card.html" %}
-    </article>
+    {% include "includes/post_card.html" %}
   {% endfor %}
   {% include "includes/paginator.html" %}
 {% endblock %}

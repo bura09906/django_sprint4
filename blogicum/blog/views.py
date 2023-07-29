@@ -145,9 +145,9 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
 def profile(request, username):
     profile = get_object_or_404(User, username=username)
     page_obj = profile.posts.order_by(
-        '-pub_date'
+        '-pub_date',
     ).annotate(comment_count=Count('comments'))
-    if username != request.user.username:
+    if profile != request.user:
         page_obj = page_obj.filter(
             is_published=True,
             category__is_published=True,
@@ -155,13 +155,13 @@ def profile(request, username):
         )
         context = {
             'profile': profile,
-            'page_obj': page_object(page_obj, request.GET.get('page'))
+            'page_obj': page_object(page_obj, request.GET.get('page')),
         }
         return render(request, 'blog/profile.html', context)
     else:
         context = {
             'profile': profile,
-            'page_obj': page_object(page_obj, request.GET.get('page'))
+            'page_obj': page_object(page_obj, request.GET.get('page')),
         }
         return render(request, 'blog/profile.html', context)
 
@@ -202,5 +202,4 @@ class CategoryDetailView(DetailView):
             comment_count=Count('comments')
         )
         context['page_obj'] = page_object(posts, self.request.GET.get('page'))
-        context['edit'] = '/edit_comment/'
         return context

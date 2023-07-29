@@ -43,7 +43,7 @@ urlpatterns = [
         views.ProfileUpdateView.as_view(),
         name='edit_profile'
     ),
-    path('profile/<username>/', views.profile, name='profile'),
+    path('profile/<str:username>/', views.profile, name='profile'),
     path(
         'category/<slug:category_slug>/',
         views.CategoryDetailView.as_view(),
