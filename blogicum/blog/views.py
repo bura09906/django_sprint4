@@ -44,6 +44,7 @@ def post_detail(request, post_id):
 
 class PostMixin:
     model = Post
+    form_class = PostForm
     template_name = 'blog/create.html'
 
     def get_context_data(self, **kwargs):
@@ -53,7 +54,6 @@ class PostMixin:
 
 
 class PostCreatView(LoginRequiredMixin, PostMixin, CreateView):
-    form_class = PostForm
 
     def form_valid(self, form):
         form.instance.author = self.request.user
@@ -65,7 +65,6 @@ class PostCreatView(LoginRequiredMixin, PostMixin, CreateView):
 
 
 class PostUpdateView(LoginRequiredMixin, PostMixin, UpdateView):
-    form_class = PostForm
     pk_url_kwarg = 'post_id'
 
     def dispatch(self, request, *args, **kwargs):
@@ -90,7 +89,7 @@ class PostDeleteView(LoginRequiredMixin, PostMixin, DeleteView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["form"] = PostForm(instance=self.object)
+        context["form"] = self.form_class(instance=self.object)
         return context
 
     def get_success_url(self):
