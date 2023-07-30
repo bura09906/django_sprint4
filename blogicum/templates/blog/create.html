@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load django_bootstrap5 %}
 {% block title %}
-{% with request.resolver_match.view_name as view_name %}
   {% if view_name == 'blog:edit_post' %}
     Редактирование публикации
   {% elif view_name == 'blog:delete_post' %}
@@ -9,10 +8,8 @@
   {% else %}
     Добавление публикации
   {% endif %}
-{% endwith %}
 {% endblock %}
 {% block content %}
-{% with request.resolver_match.view_name as view_name %}
   <div class="col d-flex justify-content-center">
     <div class="card" style="width: 40rem;">
       <div class="card-header">
@@ -48,5 +45,4 @@
       </div>
     </div>
   </div>
-{% endwith %}
 {% endblock %}

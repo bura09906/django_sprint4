@@ -42,10 +42,18 @@ def post_detail(request, post_id):
     return render(request, 'blog/detail.html', context)
 
 
-class PostCreatView(LoginRequiredMixin, CreateView):
+class PostMixin:
     model = Post
-    form_class = PostForm
     template_name = 'blog/create.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["view_name"] = self.request.resolver_match.view_name
+        return context
+
+
+class PostCreatView(LoginRequiredMixin, PostMixin, CreateView):
+    form_class = PostForm
 
     def form_valid(self, form):
         form.instance.author = self.request.user
@@ -56,10 +64,8 @@ class PostCreatView(LoginRequiredMixin, CreateView):
                        kwargs={'username': self.request.user})
 
 
-class PostUpdateView(LoginRequiredMixin, UpdateView):
-    model = Post
+class PostUpdateView(LoginRequiredMixin, PostMixin, UpdateView):
     form_class = PostForm
-    template_name = 'blog/create.html'
     pk_url_kwarg = 'post_id'
 
     def dispatch(self, request, *args, **kwargs):
@@ -73,9 +79,7 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
                        kwargs={'post_id': self.kwargs['post_id']})
 
 
-class PostDeleteView(LoginRequiredMixin, DeleteView):
-    model = Post
-    template_name = 'blog/create.html'
+class PostDeleteView(LoginRequiredMixin, PostMixin, DeleteView):
     pk_url_kwarg = 'post_id'
 
     def dispatch(self, request, *args, **kwargs):
@@ -94,6 +98,21 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
                        kwargs={'username': self.request.user})
 
 
+class CommentMixin:
+    model = Comment
+    template_name = 'blog/comment.html'
+    pk_url_kwarg = 'comment_id'
+
+    def get_success_url(self):
+        return reverse('blog:post_detail',
+                       kwargs={'post_id': self.kwargs['post_id']})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["view_name"] = self.request.resolver_match.view_name
+        return context
+
+
 class CommentCreateView(LoginRequiredMixin, CreateView):
     model = Comment
     form_class = CommentForm
@@ -109,11 +128,8 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
                        kwargs={'post_id': self.kwargs['post_id']})
 
 
-class CommentUpdateView(LoginRequiredMixin, UpdateView):
-    model = Comment
+class CommentUpdateView(LoginRequiredMixin, CommentMixin, UpdateView):
     form_class = CommentForm
-    template_name = 'blog/comment.html'
-    pk_url_kwarg = 'comment_id'
 
     def dispatch(self, request, *args, **kwargs):
         instance = get_object_or_404(Comment, pk=self.kwargs['comment_id'])
@@ -121,25 +137,14 @@ class CommentUpdateView(LoginRequiredMixin, UpdateView):
             return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
 
-    def get_success_url(self):
-        return reverse('blog:post_detail',
-                       kwargs={'post_id': self.kwargs['post_id']})
 
-
-class CommentDeleteView(LoginRequiredMixin, DeleteView):
-    model = Comment
-    template_name = 'blog/comment.html'
-    pk_url_kwarg = 'comment_id'
+class CommentDeleteView(LoginRequiredMixin, CommentMixin, DeleteView):
 
     def dispatch(self, request, *args, **kwargs):
         instance = get_object_or_404(Comment, pk=self.kwargs['comment_id'])
         if instance.author != self.request.user:
             return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
-
-    def get_success_url(self):
-        return reverse('blog:post_detail',
-                       kwargs={'post_id': self.kwargs['post_id']})
 
 
 def profile(request, username):
@@ -153,17 +158,11 @@ def profile(request, username):
             category__is_published=True,
             pub_date__lte=timezone.now(),
         )
-        context = {
-            'profile': profile,
-            'page_obj': page_object(page_obj, request.GET.get('page')),
-        }
-        return render(request, 'blog/profile.html', context)
-    else:
-        context = {
-            'profile': profile,
-            'page_obj': page_object(page_obj, request.GET.get('page')),
-        }
-        return render(request, 'blog/profile.html', context)
+    context = {
+        'profile': profile,
+        'page_obj': page_object(page_obj, request.GET.get('page')),
+    }
+    return render(request, 'blog/profile.html', context)
 
 
 class ProfileUpdateView(LoginRequiredMixin, UpdateView):
